@@ -36,11 +36,7 @@ def require_creator(store: Store, project: dict, user: dict) -> None:
 def leave_project(store: Store, project: dict, user: dict) -> None:
     """Apply the leave rules from _docs/specs.md section 4.17."""
     if project["creatorId"] == user["id"]:
-        others = [
-            uid
-            for (pid, uid) in store.memberships
-            if pid == project["id"] and uid != user["id"]
-        ]
+        others = store.list_other_members(project["id"], user["id"])
         if others:
             raise HTTPException(
                 status_code=409,
@@ -51,12 +47,9 @@ def leave_project(store: Store, project: dict, user: dict) -> None:
         return
 
     if store.get_role(project, user) == "admin":
-        admins = [
-            uid
-            for (pid, uid), rec in store.memberships.items()
-            if pid == project["id"] and rec["role"] == "admin" and uid != user["id"]
-        ]
-        if not admins:
+        admins = store.list_membership_admin_ids(project["id"])
+        others = [uid for uid in admins if uid != user["id"]]
+        if not others:
             raise HTTPException(
                 status_code=409, detail="Another admin must remain before leaving"
             )

@@ -8,7 +8,7 @@ Python / uv (backend/api-server)
 - `uv run pytest` - run all backend tests
 - `uv run pytest tests/test_health.py` - run one test file
 - `uv run uvicorn app.main:app --host 0.0.0.0 --port 5000` - run the API server (from `backend/api-server/`)
-- Required env for api-server: `SECRET_KEY` (JWT secret, defaults to dev value)
+- Required env for api-server: `SECRET_KEY` (JWT secret, defaults to dev value); `DATABASE_URL` (SQLAlchemy URL; defaults to `sqlite:///./flowboard.db`)
 
 Frontend / Backend (pnpm workspace)
 

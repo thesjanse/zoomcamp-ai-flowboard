@@ -67,7 +67,7 @@ def update_member_role(
             raise HTTPException(
                 status_code=403, detail="Only the creator can remove an admin"
             )
-    store.memberships[(project["id"], target["id"])]["role"] = payload.role
+    store.set_role(project, target, payload.role)
     return store.member_dict(project, target)
 
 
@@ -118,10 +118,7 @@ def transfer_admin(
         raise HTTPException(
             status_code=404, detail="Admin not found in project"
         )
-    project["creatorId"] = target["id"]
-    store.memberships[(project["id"], user["id"])]["role"] = "member"
-    from ..store import utcnow
-    project["updatedAt"] = utcnow()
+    project = store.transfer_admin(project, user, target)
     return store.project_to_dict(project)
 
 

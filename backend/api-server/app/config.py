@@ -10,5 +10,6 @@ import os
 
 TOKEN_EXPIRE_DAYS = int(os.getenv("TOKEN_EXPIRE_DAYS", "30"))
 INVITE_DEFAULT_DAYS = int(os.getenv("INVITE_DEFAULT_DAYS", "7"))
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./flowboard.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me-in-production")
 JWT_ALGORITHM = "HS256"

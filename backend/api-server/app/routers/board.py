@@ -62,11 +62,7 @@ def get_board(
     cards.sort(key=lambda c: (c.get("position", 0), c["id"]))
 
     comment_ids = {c["id"] for c in cards}
-    comments = [
-        comment
-        for comment in store.comments.values()
-        if comment["cardId"] in comment_ids
-    ]
+    comments = store.list_comments_for_cards(comment_ids)
 
     return {
         "project": store.project_to_dict(project),

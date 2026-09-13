@@ -106,7 +106,7 @@ def test_leave_creator_archives_project(client, store, register):
     pid = created["id"]
     res = client.post(f"/api/projects/{pid}/leave", headers=headers)
     assert res.status_code == 204
-    project = store.projects[pid]
+    project = store.get_project(pid)
     assert project["archived"] is True
     assert client.get(f"/api/projects/{pid}", headers=headers).status_code == 404
 

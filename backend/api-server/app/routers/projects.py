@@ -59,7 +59,7 @@ def update_project(
     require_member(store, project, user)
     require_admin(store, project, user)
     fields = {k: getattr(payload, k) for k in payload.model_fields_set}
-    store.update_project(project, fields)
+    project = store.update_project(project, fields)
     return store.project_to_dict(project)
 
 
@@ -87,7 +87,7 @@ def archive_project(
     project = get_project_or_404(store, project_id)
     require_member(store, project, user)
     require_admin(store, project, user)
-    store.archive_project(project)
+    project = store.archive_project(project)
     return store.project_to_dict(project)
 
 
@@ -99,5 +99,5 @@ def restore_project(
 ) -> dict:
     project = get_project_or_404(store, project_id)
     require_member(store, project, user)
-    store.restore_project(project)
+    project = store.restore_project(project)
     return store.project_to_dict(project)

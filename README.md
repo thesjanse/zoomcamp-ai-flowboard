@@ -3,9 +3,9 @@
 A responsive Kanban project-management web app for individuals and small teams. Built as a
 learning project for the AI development zoomcamp.
 
-The app is a FastAPI REST backend plus a React + TypeScript (Vite) frontend. The backend uses an
-in-memory data store seeded with demo data, so you can run and explore the full stack without a
-database.
+The app is a FastAPI REST backend plus a React + TypeScript (Vite) frontend. The backend uses
+SQLAlchemy against a SQLite database (default `flowboard.db` at the repo root) seeded with demo
+data, so you can run and explore the full stack without setting up Postgres.
 
 ## Features
 
@@ -50,7 +50,10 @@ uv sync
 uv run uvicorn app.main:app --host 0.0.0.0 --port 5000
 ```
 
-- The store runs in-memory and is seeded with demo data (no database required).
+- The server connects to the database configured by `DATABASE_URL` (default
+  `sqlite:///./flowboard.db`, created and seeded with demo data on first start). Set
+  `DATABASE_URL` to any [SQLAlchemy URL](https://docs.sqlalchemy.org/en/20/core/engines.html)
+  — e.g. a Postgres connection string — to use a different database.
 - `SECRET_KEY` is optional for local dev and defaults to a dev value.
 
 ### 2. Start the frontend

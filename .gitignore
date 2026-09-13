@@ -156,6 +156,12 @@ ENV/
 env.bak/
 venv.bak/
 
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Spyder project settings
 .spyderproject
 .spyproject

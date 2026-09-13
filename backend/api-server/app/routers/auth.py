@@ -9,7 +9,7 @@ from ..models import (
     RegisterInput,
     User,
 )
-from ..store import Store, utcnow
+from ..store import Store
 from ..auth import (
     create_token,
     get_current_user,
@@ -66,8 +66,7 @@ def change_email(
 ) -> dict:
     if store.get_user_by_email(payload.email) is not None:
         raise HTTPException(status_code=409, detail="Email already in use")
-    user["email"] = payload.email.lower()
-    user["updatedAt"] = utcnow()
+    user = store.update_user_email(user, payload.email)
     return store.user_to_dict(user)
 
 
@@ -75,11 +74,11 @@ def change_email(
 def change_password(
     payload: ChangePasswordInput,
     user: dict = Depends(get_current_user),
+    store: Store = Depends(get_store),
 ) -> Response:
     if not verify_password(payload.currentPassword, user["passwordHash"]):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
-    user["passwordHash"] = hash_password(payload.newPassword)
-    user["updatedAt"] = utcnow()
+    store.update_user_password(user, hash_password(payload.newPassword))
     return Response(status_code=204)
 
 

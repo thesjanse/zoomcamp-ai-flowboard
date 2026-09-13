@@ -1,5 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 from app.main import create_app
 from app.store import Store
@@ -9,7 +11,12 @@ PASSWORD = "password123"
 
 @pytest.fixture
 def store() -> Store:
-    return Store(seed=True)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    return Store(engine=engine, seed=True)
 
 
 @pytest.fixture

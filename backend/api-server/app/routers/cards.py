@@ -86,7 +86,7 @@ def update_card(
             raise HTTPException(
                 status_code=422, detail="Assignee must be a project member"
             )
-    store.update_card(card, fields)
+    card = store.update_card(card, fields)
     return store.card_to_dict(card)
 
 
@@ -140,5 +140,5 @@ def move_card(
         raise HTTPException(
             status_code=404, detail="Card or column not found or no access"
         )
-    store.move_card(card, column, payload.position)
+    card = store.move_card(card, column, payload.position)
     return store.card_to_dict(card)

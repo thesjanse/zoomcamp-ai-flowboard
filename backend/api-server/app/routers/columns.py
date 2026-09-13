@@ -86,7 +86,7 @@ def delete_column(
         raise HTTPException(
             status_code=409, detail="A project must keep at least one column"
         )
-    cards_in_col = [c for c in store.cards.values() if c["columnId"] == column_id]
+    cards_in_col = store.list_cards_in_column(column_id)
     if cards_in_col and move_cards_to is None:
         raise HTTPException(
             status_code=409,
