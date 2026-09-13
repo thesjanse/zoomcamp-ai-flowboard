@@ -5,12 +5,6 @@
   "references": [
     {
       "path": "./lib/db"
-    },
-    {
-      "path": "./frontend/lib/api-client-react"
-    },
-    {
-      "path": "./lib/api-zod"
     }
   ]
 }

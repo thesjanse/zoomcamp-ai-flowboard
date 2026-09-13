@@ -27,10 +27,6 @@ See `_docs/specs.md` for the full MVP specification.
 | --- | --- |
 | `backend/api-server/` | FastAPI backend (uv / Python) |
 | `frontend/kanban-board/` | Main React app (pnpm / Vite) |
-| `frontend/mockup-sandbox/` | Separate mockup/preview sandbox app |
-| `frontend/lib/api-client-react/` | Generated React Query API hooks + custom fetch |
-| `lib/api-spec/` | OpenAPI spec and Orval codegen config |
-| `lib/api-zod/` | Zod schemas generated from the API spec |
 | `lib/db/` | Drizzle schema / DB migrations |
 | `openapi.yaml` | OpenAPI specification of the API |
 | `_docs/specs.md` | MVP feature specification |
@@ -100,9 +96,8 @@ pnpm --filter @workspace/kanban-board run test  # frontend tests (vitest)
 Utility commands:
 
 ```bash
-pnpm --filter @workspace/api-spec run codegen   # regenerate API clients/Zod schemas
 pnpm --filter @workspace/db run push            # push DB schema changes (dev only)
 ```
 
-`api-spec` and `db` tooling require a `DATABASE_URL` (Postgres connection string). The build and
+The `db` tooling requires a `DATABASE_URL` (Postgres connection string). The build and
 dev commands require `PORT`/`BASE_PATH` environment variables (see the frontend `vite.config.ts`).

@@ -17,9 +17,8 @@ Frontend / Backend (pnpm workspace)
 - `PORT=22153 BASE_PATH=/ pnpm run build` - typecheck + build all packages (PORT/BASE_PATH are required by the frontend vite configs)
 - `pnpm --filter @workspace/kanban-board run test` - run frontend tests (vitest)
 - `PORT=22152 BASE_PATH=/ pnpm --filter @workspace/kanban-board run dev` - run the frontend app
-- `pnpm --filter @workspace/api-spec run codegen` - regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` - push DB schema changes (dev only)
-- Required env for api-spec/db: `DATABASE_URL` - Postgres connection string
+- Required env for db: `DATABASE_URL` - Postgres connection string
 
 Rules
 
