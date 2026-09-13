@@ -1,0 +1,1669 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication and account management
+  - name: users
+    description: Current user
+  - name: projects
+    description: Project lifecycle and settings
+  - name: board
+    description: Kanban board
+  - name: columns
+    description: Kanban board columns
+  - name: members
+    description: Project membership and administration
+  - name: invites
+    description: Expiring project invite links
+  - name: cards
+    description: Cards
+  - name: comments
+    description: Card comments
+  - name: relationships
+    description: Card blocking relationships
+  - name: search
+    description: Global search
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Sign up
+      description: Creates an account with email and password and returns a bearer token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in
+      description: Authenticates with email and password and returns a bearer token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out
+      description: Revokes the current session token.
+      responses:
+        "204":
+          description: Logged out
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/email:
+    patch:
+      operationId: changeEmail
+      tags: [auth]
+      summary: Change email
+      description: Changes the authenticated user's email address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangeEmailInput"
+      responses:
+        "200":
+          description: Email changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "409":
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/password:
+    patch:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change password
+      description: Changes the authenticated user's password after verifying the current one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "204":
+          description: Password changed
+        "401":
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/account:
+    delete:
+      operationId: deleteAccount
+      tags: [auth]
+      summary: Delete account
+      description: |
+        Permanently deletes the authenticated user's account. Projects the user
+        administers must be transferred before deletion. Existing comments and
+        created cards keep a neutral deleted-user representation.
+      responses:
+        "204":
+          description: Account deleted
+        "409":
+          description: Projects still need to be transferred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Current user
+      description: Returns the authenticated user's profile.
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      description: |
+        Lists projects the authenticated user belongs to. Archived projects are
+        excluded unless `includeArchived` is true.
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create project
+      description: |
+        Creates a private project for the authenticated user. The creator
+        becomes the first admin. New projects start with To Do, In Progress,
+        and Done columns. `color` is accepted because the frontend sends it,
+        though the MVP model does not specify project colors.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectInput"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Project not found or no access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update project
+      description: Updates project identity fields. Requires admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectInput"
+      responses:
+        "200":
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found or no access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Permanently delete project
+      description: Permanently destroys an archived project and all associated data. Requires admin rights.
+      responses:
+        "204":
+          description: Project permanently deleted
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Project is not archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/archive:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: archiveProject
+      tags: [projects]
+      summary: Archive project
+      description: Archives the project, preserving its full state. Requires admin rights.
+      responses:
+        "200":
+          description: Project archived
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/restore:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: restoreProject
+      tags: [projects]
+      summary: Restore archived project
+      description: Restores an archived project to active status. Requires the user to still hold valid project access.
+      responses:
+        "200":
+          description: Project restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          description: No longer has access to the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/board:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getBoard
+      tags: [board]
+      summary: Get board snapshot
+      description: |
+        Returns the full board for a project (project, columns, cards, comments,
+        and members) filtered by search, priority, assignee, and due date. Cards
+        are ordered by their position within each column.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: priorities
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/CardPriority"
+        - name: assigneeId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: due
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/DueFilter"
+      responses:
+        "200":
+          description: Board snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardSnapshot"
+        "404":
+          description: Project not found or no access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/columns:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: listColumns
+      tags: [columns]
+      summary: List columns
+      responses:
+        "200":
+          description: Columns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BoardColumn"
+    post:
+      operationId: createColumn
+      tags: [columns]
+      summary: Create column
+      description: Adds a column to the project board. Projects cannot exceed 7 columns. Requires admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateColumnInput"
+      responses:
+        "201":
+          description: Column created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardColumn"
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Maximum of 7 columns reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /columns/{columnId}:
+    parameters:
+      - name: columnId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updateColumn
+      tags: [columns]
+      summary: Update or reorder column
+      description: Renames a column or changes its position. Requires admin rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateColumnInput"
+      responses:
+        "200":
+          description: Column updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardColumn"
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteColumn
+      tags: [columns]
+      summary: Delete column
+      description: |
+        Deletes a column. A column containing cards cannot be deleted unless
+        `moveCardsTo` names a destination column (the project must keep at least
+        one column). Requires admin rights.
+      parameters:
+        - name: moveCardsTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Column deleted
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Column contains cards and no destination was provided, or deleting would leave zero columns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/members:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: List project members
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+  /projects/{projectId}/members/{userId}:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updateMemberRole
+      tags: [members]
+      summary: Change member role
+      description: |
+        Designates an admin or demotes to member. Any admin can designate another
+        admin; only the creator can remove an admin. Requires admin rights for
+        the acting user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleInput"
+      responses:
+        "200":
+          description: Role changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "403":
+          description: Not allowed by the permission rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: removeMember
+      tags: [members]
+      summary: Remove member
+      description: |
+        Admins remove regular members; the creator is the only user who can
+        remove an admin. The creator cannot be removed.
+      responses:
+        "204":
+          description: Member removed
+        "403":
+          description: Not allowed by the permission rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/invites:
+    post:
+      operationId: createInvite
+      tags: [invites]
+      summary: Create invite link
+      description: |
+        Generates an expiring invite link. Generating a new link invalidates the
+        previous unexpired link. Requires admin rights.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInviteInput"
+      responses:
+        "201":
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+        "403":
+          description: Not a project admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /invites/{token}/accept:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: acceptInvite
+      tags: [invites]
+      summary: Accept invite link
+      description: Joins the project associated with the invite token as a regular member.
+      responses:
+        "200":
+          description: Joined the project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "410":
+          description: Invite expired or revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/transfer:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: transferAdmin
+      tags: [members]
+      summary: Transfer admin rights
+      description: The creator transfers admin rights (and creator status) to another admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferAdminInput"
+      responses:
+        "200":
+          description: Admin rights transferred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "403":
+          description: Only the creator can transfer admin rights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/leave:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: leaveProject
+      tags: [members]
+      summary: Leave project
+      description: |
+        A regular member leaves immediately. A non-creator admin may leave if
+        another admin remains. The creator must designate another admin first,
+        unless they are the last member (in which case the project is archived).
+      responses:
+        "204":
+          description: Left the project
+        "409":
+          description: Creator must designate another admin before leaving
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{projectId}/cards:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: createCard
+      tags: [cards]
+      summary: Create card
+      description: |
+        Creates a card in the project. The card receives a sequential ID
+        (e.g. WEB-1). The assignee must be a member of the project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CardInput"
+      responses:
+        "201":
+          description: Card created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cards/{cardId}:
+    parameters:
+      - name: cardId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getCard
+      tags: [cards]
+      summary: Get card
+      responses:
+        "200":
+          description: Card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "404":
+          description: Card not found or no access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCard
+      tags: [cards]
+      summary: Update card
+      description: Updates card fields. Only `columnId` is excluded here — use the move endpoint for column changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCardInput"
+      responses:
+        "200":
+          description: Card updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "404":
+          description: Card not found or no access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCard
+      tags: [cards]
+      summary: Delete card
+      description: |
+        Deletes a card immediately. If the card has blocking relationships, the
+        client must resolve them first: remove all relationships or reconnect
+        them to another card.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteCardInput"
+      responses:
+        "204":
+          description: Card deleted
+        "409":
+          description: Card has relationships and no resolution was provided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cards/{cardId}/move:
+    parameters:
+      - name: cardId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: moveCard
+      tags: [cards]
+      summary: Move card between columns
+      description: Moves a card to another column, optionally at a specific position within that column.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveCardInput"
+      responses:
+        "200":
+          description: Card moved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Card"
+        "404":
+          description: Card or column not found or no access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cards/{cardId}/comments:
+    parameters:
+      - name: cardId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: listComments
+      tags: [comments]
+      summary: List card comments
+      responses:
+        "200":
+          description: Comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+    post:
+      operationId: addComment
+      tags: [comments]
+      summary: Add comment
+      description: Adds a comment to a card. The author is the authenticated user. Member @mentions are supported.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCommentInput"
+      responses:
+        "201":
+          description: Comment added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+  /comments/{commentId}:
+    parameters:
+      - name: commentId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updateComment
+      tags: [comments]
+      summary: Edit comment
+      description: Edits the body of a comment. Users can edit their own comments; edited comments carry `editedAt`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommentInput"
+      responses:
+        "200":
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
+        "403":
+          description: Not the comment author
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteComment
+      tags: [comments]
+      summary: Delete comment
+      description: |
+        Permanently deletes a comment. The frontend service contract exposes
+        card comment deletion, so the backend must support it. Note: the MVP
+        spec (_docs/specs.md §2.9) says comments cannot be deleted — this
+        endpoint exists because the frontend expects it.
+      responses:
+        "204":
+          description: Comment deleted
+        "403":
+          description: Not allowed to delete this comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cards/{cardId}/relationships:
+    parameters:
+      - name: cardId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: listRelationships
+      tags: [relationships]
+      summary: List blocking relationships
+      description: Returns the cards this card blocks and the cards blocking it.
+      responses:
+        "200":
+          description: Relationships
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelationshipSet"
+    post:
+      operationId: createRelationship
+      tags: [relationships]
+      summary: Add blocking relationship
+      description: |
+        Marks this card as blocking another card. Only same-project relationships
+        are allowed, a card cannot block itself, and duplicates are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRelationshipInput"
+      responses:
+        "201":
+          description: Relationship created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "409":
+          description: Self, cross-project, or duplicate relationship
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cards/{cardId}/relationships/{targetCardId}:
+    parameters:
+      - name: cardId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: targetCardId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: deleteRelationship
+      tags: [relationships]
+      summary: Remove blocking relationship
+      responses:
+        "204":
+          description: Relationship removed
+  /search:
+    get:
+      operationId: search
+      tags: [search]
+      summary: Search projects and cards
+      description: |
+        Searches project names, project keys, project descriptions, card IDs,
+        card titles, and card descriptions. Comments are not searched. Results
+        are filtered by the authenticated user's access, so archived projects
+        that a user can access appear with an `archived` subtitle. Maximum 8 results.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+        "422":
+          description: Empty query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Session token issued by login or register. The frontend attaches it via
+        an `Authorization: Bearer <token>` header (see `custom-fetch.ts`).
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+        - updatedAt
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required:
+        - name
+        - email
+        - password
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+    ChangeEmailInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+    ChangePasswordInput:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+      required:
+        - currentPassword
+        - newPassword
+    MemberRole:
+      type: string
+      enum: [admin, member]
+    Member:
+      type: object
+      description: |
+        A project member. Note: the frontend mock uses `role` for a display job
+        title; in the API contract it carries the permission level per the MVP.
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        initials:
+          type: string
+        color:
+          type: string
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        joinedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - initials
+        - color
+        - role
+        - joinedAt
+    ProjectStatus:
+      type: string
+      enum: [active, archived]
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        key:
+          type: string
+          description: Short project code used to build card IDs (e.g. WEB).
+        description:
+          type: string
+        color:
+          type: string
+          description: Accepted because the frontend contract includes it; the MVP model has no project colors.
+        icon:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        archived:
+          type: boolean
+          description: Convenience mirror of `status` maintained for the frontend.
+        creatorId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/Member"
+      required:
+        - id
+        - name
+        - key
+        - description
+        - color
+        - icon
+        - status
+        - archived
+        - creatorId
+        - createdAt
+        - updatedAt
+        - archivedAt
+        - members
+    CreateProjectInput:
+      type: object
+      description: Members and starting columns are created server-side.
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        color:
+          type: string
+      required:
+        - name
+        - description
+      additionalProperties: false
+    UpdateProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        color:
+          type: string
+      minProperties: 1
+      additionalProperties: false
+    BoardColumn:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+          description: Accepted because the frontend contract includes it; the MVP model has no column colors.
+        position:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - name
+        - color
+        - position
+        - createdAt
+        - updatedAt
+    CreateColumnInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required:
+        - name
+      additionalProperties: false
+    UpdateColumnInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        position:
+          type: integer
+          minimum: 0
+      minProperties: 1
+      additionalProperties: false
+    CardPriority:
+      type: string
+      description: Frontend contract values. The MVP doc names them Critical/Major/Normal/Low.
+      enum: [urgent, high, medium, low]
+    DueFilter:
+      type: string
+      enum: [all, overdue, this-week, no-date]
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Project-key prefixed sequential ID, e.g. WEB-1. Deleted IDs are never reused.
+        projectId:
+          type: string
+        columnId:
+          type: string
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        priority:
+          $ref: "#/components/schemas/CardPriority"
+        assigneeId:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: Date-only; no time component.
+        labels:
+          type: array
+          items:
+            type: string
+          description: Accepted because the frontend contract includes them; not part of the MVP model.
+        creatorId:
+          type: string
+        position:
+          type: integer
+          description: Explicit ordering value within its column (one shared order).
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        blockedBy:
+          type: array
+          items:
+            type: string
+          description: IDs of cards blocking this card.
+        blocking:
+          type: array
+          items:
+            type: string
+          description: IDs of cards this card blocks.
+        commentCount:
+          type: integer
+      required:
+        - id
+        - projectId
+        - columnId
+        - title
+        - description
+        - priority
+        - assigneeId
+        - dueDate
+        - labels
+        - creatorId
+        - position
+        - createdAt
+        - updatedAt
+        - blockedBy
+        - blocking
+        - commentCount
+    CardInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        priority:
+          $ref: "#/components/schemas/CardPriority"
+        assigneeId:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        labels:
+          type: array
+          items:
+            type: string
+        columnId:
+          type: string
+      required:
+        - title
+        - description
+        - priority
+        - assigneeId
+        - dueDate
+        - labels
+        - columnId
+      additionalProperties: false
+    UpdateCardInput:
+      type: object
+      description: All fields optional; moves are handled by the dedicated move endpoint.
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        priority:
+          $ref: "#/components/schemas/CardPriority"
+        assigneeId:
+          type: string
+          nullable: true
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        labels:
+          type: array
+          items:
+            type: string
+      minProperties: 1
+      additionalProperties: false
+    MoveCardInput:
+      type: object
+      properties:
+        columnId:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+      required:
+        - columnId
+      additionalProperties: false
+    DeleteCardInput:
+      type: object
+      description: Required when the card has blocking relationships; ignored otherwise.
+      properties:
+        resolveRelationships:
+          type: string
+          enum: [delete, reconnect]
+        reconnectToCardId:
+          type: string
+      additionalProperties: false
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        cardId:
+          type: string
+        authorId:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - cardId
+        - authorId
+        - body
+        - createdAt
+        - updatedAt
+        - editedAt
+    AddCommentInput:
+      type: object
+      properties:
+        body:
+          type: string
+          minLength: 1
+      required:
+        - body
+      additionalProperties: false
+    UpdateCommentInput:
+      type: object
+      description: |
+        Editing sets `editedAt`. The frontend also exposes comment deletion;
+        see DELETE /comments/{commentId}.
+      properties:
+        body:
+          type: string
+          minLength: 1
+      required:
+        - body
+      additionalProperties: false
+    BoardSnapshot:
+      type: object
+      properties:
+        project:
+          $ref: "#/components/schemas/Project"
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/BoardColumn"
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Card"
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comment"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/Member"
+      required:
+        - project
+        - columns
+        - cards
+        - comments
+        - members
+    SearchResult:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [project, card]
+        id:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+      required:
+        - type
+        - id
+        - title
+        - subtitle
+    Invite:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Raw invite token shown to the user.
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - token
+        - expiresAt
+    CreateInviteInput:
+      type: object
+      properties:
+        expiresInDays:
+          type: integer
+          minimum: 1
+          description: Defaults to 7 days per the MVP recommendation.
+      additionalProperties: false
+    TransferAdminInput:
+      type: object
+      properties:
+        adminId:
+          type: string
+      required:
+        - adminId
+      additionalProperties: false
+    UpdateMemberRoleInput:
+      type: object
+      properties:
+        role:
+          $ref: "#/components/schemas/MemberRole"
+      required:
+        - role
+      additionalProperties: false
+    Relationship:
+      type: object
+      properties:
+        id:
+          type: string
+        sourceCardId:
+          type: string
+          description: The card that blocks (`sourceCardId` blocks `targetCardId`).
+        targetCardId:
+          type: string
+        type:
+          type: string
+          enum: [blocks]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sourceCardId
+        - targetCardId
+        - type
+        - createdAt
+    RelationshipSet:
+      type: object
+      properties:
+        blockedBy:
+          type: array
+          items:
+            $ref: "#/components/schemas/Relationship"
+        blocking:
+          type: array
+          items:
+            $ref: "#/components/schemas/Relationship"
+      required:
+        - blockedBy
+        - blocking
+    CreateRelationshipInput:
+      type: object
+      properties:
+        targetCardId:
+          type: string
+      required:
+        - targetCardId
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      description: Problem-details style error body.
+      properties:
+        title:
+          type: string
+        detail:
+          type: string
+        status:
+          type: integer
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    # Board filters expressed as a schema for reference; getBoard exposes them
+    # as query parameters. The frontend BoardFilters shape:
+    BoardFilters:
+      type: object
+      properties:
+        search:
+          type: string
+        priorities:
+          type: array
+          items:
+            $ref: "#/components/schemas/CardPriority"
+        assigneeId:
+          type: string
+          nullable: true
+        due:
+          $ref: "#/components/schemas/DueFilter"
+      required:
+        - search
+        - priorities
+        - assigneeId
+        - due
